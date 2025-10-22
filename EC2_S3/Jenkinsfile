@@ -16,9 +16,11 @@ pipeline {
 
         stage('Terraform Init & Apply') {
             steps {
-                sh 'terraform init'
-                sh 'terraform plan -out=tfplan'
-                sh 'terraform apply -auto-approve tfplan'
+                dir('EC2_S3') {  // <- run inside the folder containing main.tf
+                    sh 'terraform init'
+                    sh 'terraform plan -out=tfplan'
+                    sh 'terraform apply -auto-approve tfplan'
+                }
             }
         }
     }
