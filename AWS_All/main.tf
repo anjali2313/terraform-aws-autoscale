@@ -46,17 +46,14 @@ resource "aws_subnet" "private" {
 # -------------------------
 # 3️⃣ Internet Gateway & NAT Gateway
 # -------------------------
-# Internet Gateway for public subnet
 resource "aws_internet_gateway" "igw" {
   vpc_id = aws_vpc.myvpc.id
 }
 
-# Elastic IP for NAT Gateway
 resource "aws_eip" "nat_eip" {
   vpc = true
 }
 
-# NAT Gateway in public subnet for private subnet outbound internet access
 resource "aws_nat_gateway" "nat" {
   allocation_id = aws_eip.nat_eip.id
   subnet_id     = aws_subnet.public.id
@@ -65,7 +62,6 @@ resource "aws_nat_gateway" "nat" {
 # -------------------------
 # 4️⃣ Route Tables
 # -------------------------
-# Public route table
 resource "aws_route_table" "public_rt" {
   vpc_id = aws_vpc.myvpc.id
   route {
@@ -74,13 +70,11 @@ resource "aws_route_table" "public_rt" {
   }
 }
 
-# Associate public subnet with public route table
 resource "aws_route_table_association" "public_assoc" {
   subnet_id      = aws_subnet.public.id
   route_table_id = aws_route_table.public_rt.id
 }
 
-# Private route table using NAT Gateway
 resource "aws_route_table" "private_rt" {
   vpc_id = aws_vpc.myvpc.id
   route {
@@ -95,11 +89,16 @@ resource "aws_route_table_association" "private_assoc" {
 }
 
 # -------------------------
-# 5️⃣ S3 Bucket
+# 5️⃣ S3 Bucket (Fixed ACL Warning)
 # -------------------------
 resource "aws_s3_bucket" "my_bucket" {
   bucket = "anjali-demo-bucket-2025"
-  acl    = "private" # Deprecated, can use aws_s3_bucket_acl
+}
+
+# ✅ New ACL resource instead of deprecated acl="private"
+resource "aws_s3_bucket_acl" "my_bucket_acl" {
+  bucket = aws_s3_bucket.my_bucket.id
+  acl    = "private"
 }
 
 resource "aws_s3_bucket_versioning" "my_bucket_versioning" {
@@ -184,7 +183,6 @@ resource "aws_instance" "demo" {
     Name = "DemoInstance"
   }
 
-  # Upload hostname to S3 on startup
   user_data = <<-EOF
               #!/bin/bash
               aws s3 cp /etc/hostname s3://${aws_s3_bucket.my_bucket.bucket}/ec2-hostname.txt
@@ -220,7 +218,7 @@ resource "aws_security_group" "efs_sg" {
     from_port   = 2049
     to_port     = 2049
     protocol    = "tcp"
-    cidr_blocks = ["10.0.0.0/16"] # allow VPC access
+    cidr_blocks = ["10.0.0.0/16"]
   }
 
   egress {
