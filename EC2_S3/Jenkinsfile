@@ -2,7 +2,7 @@ properties([
     parameters([
         booleanParam(
             name: 'DESTROY',
-            defaultValue: false,
+            defaultValue: true,
             description: 'Check this to destroy Terraform infrastructure'
         )
     ])
