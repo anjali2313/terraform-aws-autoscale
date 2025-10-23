@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         AWS_ACCESS_KEY_ID     = credentials('sec-key')   // Jenkins credential ID for AWS access key
-        AWS_SECRET_ACCESS_KEY = credentials('new-id')   // Jenkins credential ID for AWS secret key
+        AWS_SECRET_ACCESS_KEY = credentials('new-id')    // Jenkins credential ID for AWS secret key
         AWS_DEFAULT_REGION    = 'ap-northeast-1'
     }
 
@@ -31,6 +31,28 @@ pipeline {
                 sh 'terraform apply -auto-approve tfplan'
             }
         }
+
+        stage('Terraform Destroy') {
+            when {
+                expression { return params.DESTROY == true } // optional boolean param
+            }
+            steps {
+                script {
+                    echo "🧹 Cleaning S3 bucket before destroy..."
+                    def BUCKET_NAME = "anjali-demo-bucket-2025"
+
+                    // Empty S3 bucket including versions + delete markers
+                    sh """
+                    aws s3 rm s3://$BUCKET_NAME --recursive || true
+                    aws s3api delete-objects --bucket $BUCKET_NAME --delete "\$(aws s3api list-object-versions --bucket $BUCKET_NAME --output=json --query='{Objects: Versions[].{Key:Key,VersionId:VersionId}}')" || true
+                    aws s3api delete-objects --bucket $BUCKET_NAME --delete "\$(aws s3api list-object-versions --bucket $BUCKET_NAME --output=json --query='{Objects: DeleteMarkers[].{Key:Key,VersionId:VersionId}}')" || true
+
+                    echo "🚀 Starting Terraform destroy..."
+                    terraform destroy -auto-approve
+                    """
+                }
+            }
+        }
     }
 
     post {
@@ -38,10 +60,10 @@ pipeline {
             echo "Terraform pipeline finished."
         }
         success {
-            echo "Infrastructure provisioned successfully!"
+            echo "✅ Infrastructure operation completed successfully!"
         }
         failure {
-            echo "Terraform failed. Check the logs."
+            echo "❌ Terraform failed. Check the logs."
         }
     }
 }
