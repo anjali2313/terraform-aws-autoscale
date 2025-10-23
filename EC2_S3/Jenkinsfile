@@ -1,3 +1,14 @@
+properties([
+    parameters([
+        booleanParam(
+            name: 'DESTROY',
+            defaultValue: false,
+            description: 'Check this to destroy Terraform infrastructure'
+        )
+    ])
+])
+
+
 pipeline {
     agent any
 
@@ -23,6 +34,17 @@ pipeline {
                 }
             }
         }
+
+        stage('Terraform Destroy') {
+            when {
+                 expression { params.DESTROY == true }
+             }
+             steps {
+                  dir('EC2_S3') {
+                      sh 'terraform destroy -auto-approve'
+                 }
+             }
+        }  
     }
 
     post {
