@@ -1,0 +1,57 @@
+pipeline {
+    agent any
+
+    parameters {
+        booleanParam(name: 'DESTROY', defaultValue: false, description: 'Destroy infrastructure if checked')
+    }
+
+    environment {
+        AWS_ACCESS_KEY_ID     = credentials('sec-key')
+        AWS_SECRET_ACCESS_KEY = credentials('new-id')
+        AWS_DEFAULT_REGION    = 'ap-northeast-1'
+    }
+
+    stages {
+        stage('Checkout Code') {
+            steps { checkout scm }
+        }
+
+        stage('Terraform Init') {
+            steps { sh 'terraform init' }
+        }
+
+        stage('Terraform Validate') {
+            steps {
+                sh 'terraform fmt -check'
+                sh 'terraform validate'
+            }
+        }
+
+        stage('Terraform Plan') {
+            steps { sh 'terraform plan -out=tfplan' }
+        }
+
+        stage('Approval Before Apply') {
+            steps {
+                script {
+                    input message: 'Proceed with Terraform Apply?'
+                }
+            }
+        }
+
+        stage('Terraform Apply') {
+            when { expression { !params.DESTROY } }
+            steps { sh 'terraform apply -auto-approve tfplan' }
+        }
+
+        stage('Terraform Destroy') {
+            when { expression { params.DESTROY } }
+            steps { sh 'terraform destroy -auto-approve' }
+        }
+    }
+
+    post {
+        success { echo '✅ Terraform completed successfully.' }
+        failure { echo '❌ Terraform failed. Check the logs.' }
+    }
+}

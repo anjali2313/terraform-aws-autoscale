@@ -8,7 +8,6 @@ properties([
     ])
 ])
 
-
 pipeline {
     agent any
 
@@ -26,8 +25,11 @@ pipeline {
         }
 
         stage('Terraform Init & Apply') {
+            when {
+                expression { params.DESTROY == false }
+            }
             steps {
-                dir('AWS_All') {  // <- run inside the folder containing main.tf
+                dir('AWS_All') {
                     sh 'terraform init'
                     sh 'terraform plan -out=tfplan'
                     sh 'terraform apply -auto-approve tfplan'
@@ -37,22 +39,22 @@ pipeline {
 
         stage('Terraform Destroy') {
             when {
-                 expression { params.DESTROY == false }
-             }
-             steps {
-                  dir('EC2_S3') {
-                      sh 'terraform destroy -auto-approve'
-                 }
-             }
-        }  
+                expression { params.DESTROY == true }
+            }
+            steps {
+                dir('AWS_All') {
+                    sh 'terraform destroy -auto-approve'
+                }
+            }
+        }
     }
 
     post {
         success {
-            echo 'Infrastructure provisioned successfully!'
+            echo '✅ Infrastructure provisioned or destroyed successfully!'
         }
         failure {
-            echo 'Something went wrong. Check the logs.'
+            echo '❌ Something went wrong. Check the logs.'
         }
     }
 }
