@@ -2,7 +2,7 @@ properties([
     parameters([
         booleanParam(
             name: 'DESTROY',
-            defaultValue: true,
+            defaultValue: false,
             description: 'Check this to destroy Terraform infrastructure'
         )
     ])
@@ -37,7 +37,7 @@ pipeline {
 
         stage('Terraform Destroy') {
             when {
-                 expression { params.DESTROY == true }
+                 expression { params.DESTROY == false }
              }
              steps {
                   dir('EC2_S3') {
