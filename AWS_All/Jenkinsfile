@@ -1,0 +1,58 @@
+properties([
+    parameters([
+        booleanParam(
+            name: 'DESTROY',
+            defaultValue: false,
+            description: 'Check this to destroy Terraform infrastructure'
+        )
+    ])
+])
+
+
+pipeline {
+    agent any
+
+    environment {
+        AWS_ACCESS_KEY_ID     = credentials('sec-key')
+        AWS_SECRET_ACCESS_KEY = credentials('new-id')
+        AWS_DEFAULT_REGION    = 'ap-northeast-1'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Terraform Init & Apply') {
+            steps {
+                dir('EC2_S3') {  // <- run inside the folder containing main.tf
+                    sh 'terraform init'
+                    sh 'terraform plan -out=tfplan'
+                    sh 'terraform apply -auto-approve tfplan'
+                }
+            }
+        }
+
+        stage('Terraform Destroy') {
+            when {
+                 expression { params.DESTROY == true }
+             }
+             steps {
+                  dir('EC2_S3') {
+                      sh 'terraform destroy -auto-approve'
+                 }
+             }
+        }  
+    }
+
+    post {
+        success {
+            echo 'Infrastructure provisioned successfully!'
+        }
+        failure {
+            echo 'Something went wrong. Check the logs.'
+        }
+    }
+}
